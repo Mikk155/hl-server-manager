@@ -47,6 +47,11 @@ __dict_messages__ = {
         "spanish": "Inserta la ruta absoluta a hlds.exe por ejemplo: C:/Program Data/../Half-Life/hlds.exe",
         "english": "Insert the absolute path to hlds.exe for example: C:/Program Data/../Half-Life/hlds.exe",
     },
+    "configuration.mod":
+    {
+        "spanish": "Inserta el nombre de la carpeta de su mod, si es un servidor de half life inserte \"valve\"",
+        "english": "Insert the folder name of your mod, if this is a half life server insert \"valve\"",
+    },
     "configuration.roles":
     {
         "spanish": "Inserta una lista de ID de roles de discord que podrán utilizar el comando. Separa con espacios. Usa 0 para no limitar a ningun usuario. Usa -1 para solo administradores.",
@@ -217,6 +222,8 @@ def configuration( update: bool = False ) -> None:
     __rc__( "hlds" );
     while not os.path.exists( cfg.get( "hlds", '' ) ):
         __rc__( "hlds", True );
+    if not "svends.exe" in cfg["hlds"]:
+        __rc__( "mod" );
     __rc__( "roles" );
     __rc__( "arguments" );
     __rc__( "shutdown" );
@@ -387,25 +394,32 @@ async def on_think():
                 dir_name = os.path.join( dir_name, "store" );
                 dir_name = os.path.join( dir_name, "hl-server-manager.json" );
 
-                if os.path.exists( dir_name ):
+            elif cfg[ "hlds" ].lower().endswith( "hlds.exe" ):
 
-                    cache = json.load( open( dir_name, 'r' ) );
+                dir_name = os.path.join( dir_name, cfg[ "mod" ] );
+                dir_name = os.path.join( dir_name, "scripts" );
+                dir_name = os.path.join( dir_name, "store" );
+                dir_name = os.path.join( dir_name, "hl-server-manager.json" );
 
-                    time: int = int(cache.get( "seconds", -1 ));
+            if os.path.exists( dir_name ):
 
-                    if time > int( cfg[ "shutdown" ] ):
+                cache = json.load( open( dir_name, 'r' ) );
 
-                        msg = printf( "shutdown.server", [ time ] );
-        
-                        os.remove( dir_name );
+                time: int = int(cache.get( "seconds", -1 ));
 
-                        subprocess.Popen( 'taskkill /f /im svends.exe', shell=True );
+                if time != -1 and time > int( cfg[ "shutdown" ] ):
 
-                        channel = bot.get_channel( last_channel );
-        
-                        if channel:
+                    msg = printf( "shutdown.server", [ time ] );
+    
+                    os.remove( dir_name );
 
-                            await channel.send( msg );
+                    subprocess.Popen( 'taskkill /f /im svends.exe', shell=True );
+
+                    channel = bot.get_channel( last_channel );
+    
+                    if channel:
+
+                        await channel.send( msg );
 
         except Exception as e:
 

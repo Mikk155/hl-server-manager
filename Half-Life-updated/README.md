@@ -63,3 +63,9 @@ void GameDLLInit()
 Now compile your serverdll.
 
 [Here](https://github.com/Mikk155/halflife-updated/tree/hl-server-manager)'s a branch with this sole implementation.
+
+# Important
+in your valve/mod directory you must create a folder and subfolder because the SDK won't be able to write the file otherway.
+```
+(mod folder or valve)/scripts/store/
+```
