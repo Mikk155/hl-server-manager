@@ -3,7 +3,6 @@
 	{
 		"name" "hl-server-manager"
 		"script" "hl-server-manager"
-		"concommandns" "plrmgr"
 	}
 */
 
