@@ -13,9 +13,7 @@ void PluginInit()
 {
 	g_Module.ScriptInfo.SetAuthor( "Mikk" );
 	g_Module.ScriptInfo.SetContactInfo( "https://github.com/Mikk155/hl-server-manager" );
-	MapInit();
 }
-
 
 void MapInit()
 {
@@ -56,7 +54,7 @@ class Logger
 
 	void warn( string message, array<string> arguments = {} )
 	{
-		g_Game.AlertMessage( at_console, "[Debug]" + this.log( message, arguments ) );
+		g_Game.AlertMessage( at_console, "[Warning]" + this.log( message, arguments ) );
 	}
 
 	void debug( string message, array<string> arguments = {} )
@@ -70,24 +68,13 @@ final class MyServerManager
 	private int seconds = 0;
 	private CScheduledFunction@ schedule = null;
 
+	private int iterations = 5;
+	private string filename = "scripts/plugins/store/hl-server-manager.json";
+	private File@ pFile = null;
+
 	bool enabled()
 	{
 		return ( schedule !is null );
-	}
-
-	~MyServerManager()
-	{
-		this.remove();
-	}
-
-	MyServerManager()
-	{
-		this.init();
-	}
-
-	void init()
-	{
-		@schedule = g_Scheduler.SetInterval( @this, "checker", 1.0f, g_Scheduler.REPEAT_INFINITE_TIMES );
 	}
 
 	void remove()
@@ -101,25 +88,58 @@ final class MyServerManager
 		g_Scheduler.ClearTimerList();
 	}
 
+	void write()
+	{
+		for( int i = 0; ( pFile is null || !pFile.IsOpen() ) && i < iterations; i++ )
+		{
+			@pFile = g_FileSystem.OpenFile( filename, OpenFile::WRITE );
+
+			if( pFile is null || !pFile.IsOpen() )
+			{
+				g_Logger.warn( "Failed to open file \"{}\" Retrying... {}/{}", {
+					filename, string(i), string(iterations)
+				} );
+			}
+			else
+			{
+				pFile.Write( "{\"seconds\": "+string(this.seconds)+"}" );
+				pFile.Close();
+				@pFile = null;
+				return;
+			}
+		}
+		g_Logger.error( "Failed to open file \"{}\" a delay may occur in python.", { filename } );
+	}
+
 	void checker()
 	{
-		this.seconds++;
-
 		if( g_PlayerFuncs.GetNumPlayers() != 0 )
 		{
-			this.seconds = 0;
+			if( this.seconds != 0 )
+			{
+				this.seconds = 0;
+				this.write();
+			}
 		}
-
-		File@ pFile = g_FileSystem.OpenFile( "scripts/plugins/store/hl-server-manager.json", OpenFile::WRITE );
-
-		if( pFile is null || !pFile.IsOpen() )
+		else
 		{
-			g_Logger.error( "Couldn't create cache file." );
-			return;
+			this.seconds++;
+			this.write();
 		}
+	}
 
-		pFile.Write( "{
-	\"seconds\": "+string(this.seconds)+"
-}" );
+	void init()
+	{
+		@schedule = g_Scheduler.SetInterval( @this, "checker", 1.0f, g_Scheduler.REPEAT_INFINITE_TIMES );
+	}
+
+	~MyServerManager()
+	{
+		this.remove();
+	}
+
+	MyServerManager()
+	{
+		this.init();
 	}
 }
