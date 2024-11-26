@@ -7,6 +7,8 @@
 	}
 */
 
+float WRITE_RATE = 10;
+
 MyServerManager@ hl_ServerManager;
 
 void PluginInit()
@@ -72,6 +74,8 @@ final class MyServerManager
 	private string filename = "scripts/plugins/store/hl-server-manager.json";
 	private File@ pFile = null;
 
+	private float flLastWrite = 0.0f;
+
 	bool enabled()
 	{
 		return ( schedule !is null );
@@ -90,6 +94,9 @@ final class MyServerManager
 
 	void write()
 	{
+		if( flLastWrite > g_Engine.time )
+			return;
+
 		for( int i = 0; ( pFile is null || !pFile.IsOpen() ) && i < iterations; i++ )
 		{
 			@pFile = g_FileSystem.OpenFile( filename, OpenFile::WRITE );
@@ -105,6 +112,7 @@ final class MyServerManager
 				pFile.Write( "{\"seconds\": "+string(this.seconds)+"}" );
 				pFile.Close();
 				@pFile = null;
+				flLastWrite = g_Engine.time + WRITE_RATE;
 				return;
 			}
 		}
