@@ -409,7 +409,8 @@ async def on_think():
 
                 if time != -1 and time > int( cfg[ "shutdown" ] ):
 
-                    msg = printf( "shutdown.server", [ time ] );
+                    printf( "shutdown.server", [ time ] );
+                    msg = printf( "shutdown.server", [ time ], dont_print=True, dont_color=True );
     
                     os.remove( dir_name );
 
