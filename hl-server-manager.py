@@ -3,6 +3,7 @@ import sys
 import json
 import psutil
 import discord
+from discord.ext import tasks
 import subprocess
 from colorama import Fore, Back
 from colorama import init as colorama_init
@@ -56,6 +57,11 @@ __dict_messages__ = {
         "spanish": "Inserta una lista de argumentos para ejecutar en el hlds.exe",
         "english": "Insert a list of arguments to execute on the hlds.exe",
     },
+    "configuration.shutdown":
+    {
+        "spanish": "Inserta una cantidad de tiempo en segundos en que el servidor será apagado cuando no haya jugadores por ese tiempo.\n0 - nunca apagar.",
+        "english": "Insert an amount of time in seconds in wich the server will be shut down when there are not players connected during that time.\n0 - never shut down.",
+    },
     "starting.program":
     {
         "spanish": "Iniciando programa con la configuracion:\n{}{}",
@@ -85,6 +91,11 @@ __dict_messages__ = {
     {
         "spanish": "Este comando ha sido configurado como solo para roles especificos.",
         "english": "This command is been configured as for specific roles only.",
+    },
+    "shutdown.server":
+    {
+        "spanish": "El servidor ha permanecido sin jugadores durante {} segundos, Apagando.",
+        "english": "The server didn't had any player since {} seconds, Shutting down.",
     },
 };
 
@@ -208,6 +219,7 @@ def configuration( update: bool = False ) -> None:
         __rc__( "hlds", True );
     __rc__( "roles" );
     __rc__( "arguments" );
+    __rc__( "shutdown" );
 
     set_config();
 
@@ -291,6 +303,16 @@ colorama_init();
 
 await_input();
 
+def is_running() -> bool:
+
+    for process in psutil.process_iter( [ 'name' ] ):
+
+        if process.info[ 'name' ].lower() == cfg["hlds"][ cfg["hlds"].replace('\\', '/').rfind('/') + 1 : ].lower():
+
+            return True;
+
+    return False;
+
 @bot.tree.command()
 async def server_start( interaction: discord.Interaction ):
     """Starts the server"""
@@ -327,26 +349,76 @@ async def server_start( interaction: discord.Interaction ):
 
                 return;
 
-        for process in psutil.process_iter( [ 'name' ] ):
+        if is_running():
 
-            if process.info[ 'name' ].lower() == cfg["hlds"][ cfg["hlds"].replace('\\', '/').rfind('/') + 1 : ].lower():
+            await interaction.followup.send( content=printf( "command.running", dont_print=True, dont_color=True ) );
 
-                await interaction.followup.send( content=printf( "command.running", dont_print=True, dont_color=True ) );
-    
-                return;
+            return;
 
         await interaction.followup.send( content=printf( "command.run", dont_print=True, dont_color=True ) );
 
         subprocess.Popen( '{} {}'.format( cfg[ "hlds" ], cfg[ "arguments" ] ), shell=True, cwd=os.path.dirname( cfg["hlds"] ) );
 
+        global last_channel;
+        last_channel = interaction.channel_id;
+
     except Exception as e:
 
         await interaction.followup.send( "Exception:\n```\n{}```".format( e ) );
+
+global last_channel;
+last_channel: int = 0
+
+@tasks.loop( seconds = 1 )
+async def on_think():
+
+    await bot.wait_until_ready();
+
+    if is_running():
+
+        try:
+            dir_name = os.path.dirname( cfg["hlds"] );
+
+            if cfg[ "hlds" ].lower().endswith( "svends.exe" ):
+
+                dir_name = os.path.join( dir_name, "svencoop" );
+                dir_name = os.path.join( dir_name, "scripts" );
+                dir_name = os.path.join( dir_name, "plugins" );
+                dir_name = os.path.join( dir_name, "store" );
+                dir_name = os.path.join( dir_name, "hl-server-manager.json" );
+
+                if os.path.exists( dir_name ):
+
+                    cache = json.load( open( dir_name, 'r' ) );
+
+                    time: int = int(cache.get( "seconds", -1 ));
+
+                    if time > int( cfg[ "shutdown" ] ):
+
+                        msg = printf( "shutdown.server", [ time ] );
+        
+                        os.remove( dir_name );
+
+                        subprocess.Popen( 'taskkill /f /im svends.exe', shell=True );
+
+                        channel = bot.get_channel( last_channel );
+        
+                        if channel:
+
+                            await channel.send( msg );
+
+        except Exception as e:
+
+            await print( "Exception: {}".format( e ) );
 
 @bot.event
 async def on_ready():
 
     await bot.wait_until_ready();
+
+    if cfg[ "shutdown" ].isnumeric() and int( cfg[ "shutdown" ] ) > 0:
+
+        on_think.start()
 
     printf( "start.bot", [ bot.user.name ] );
 
