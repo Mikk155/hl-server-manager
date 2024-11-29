@@ -127,6 +127,7 @@ def __language__() -> str:
 
     return str( __lang__.lower() );
 
+print( f'{__language__()}' )
 #======================================================
 
 def printf( data: str, arguments: list[str] = [], dont_print: bool = False, dont_color: bool = False ) -> str:
@@ -224,6 +225,8 @@ def configuration( update: bool = False ) -> None:
         __rc__( "hlds", True );
     if not "svends.exe" in cfg["hlds"]:
         __rc__( "mod" );
+        if not "mod" in cfg:
+            cfg["mods"] = "valve";
     __rc__( "roles" );
     __rc__( "arguments" );
     __rc__( "shutdown" );
