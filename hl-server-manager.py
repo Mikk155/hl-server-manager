@@ -379,11 +379,12 @@ last_channel: int = 0
 @tasks.loop( seconds = 1 )
 async def on_think():
 
-    await bot.wait_until_ready();
+    try:
 
-    if is_running():
+        await bot.wait_until_ready();
 
-        try:
+        if is_running():
+
             dir_name = os.path.dirname( cfg["hlds"] );
 
             if cfg[ "hlds" ].lower().endswith( "svends.exe" ):
@@ -422,9 +423,9 @@ async def on_think():
 
                         await channel.send( msg );
 
-        except Exception as e:
+    except Exception as e:
 
-            await print( "Exception: {}".format( e ) );
+        await print( "Exception: {}".format( e ) );
 
 @bot.event
 async def on_ready():
